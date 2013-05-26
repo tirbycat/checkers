@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?> 
+<click-app charset="UTF-8" locale="ru"> 
+    <pages package="com.mycompany.checkersserver.webpageclasses"/>
+    <page path="click/not-found.htm" classname="com.mycompany.checkersserver.webpageclasses.click.NotFoundPage"/>    
+</click-app>

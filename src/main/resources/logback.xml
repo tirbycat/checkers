@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<configuration>
+    
+    <appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
+        <encoding>cp1251</encoding>
+        <target>System.out</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n%ex{full}</pattern>
+        </encoder>
+    </appender>
+    
+    <appender name="file" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <encoding>cp1251</encoding>
+        <file>/var/log/tomcat/webshop.log</file>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n%ex{full}</pattern>
+        </encoder>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>/var/log/tomcat/checkers_%d{yyyy-MM-dd}.log</fileNamePattern>
+        </rollingPolicy>
+    </appender>
+    
+    <root level="info">
+        <appender-ref ref="stdout"/>
+        <appender-ref ref="file"/>
+    </root>
+    
+</configuration>
