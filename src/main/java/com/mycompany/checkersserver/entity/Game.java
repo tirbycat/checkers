@@ -81,21 +81,6 @@ public class Game implements Serializable {
         return g;
     }
     
-//    public static Game update(Long id, String marking, OrderStatus status, OrderPayed payed){
-//        Session s = HibernateSessionManager.getUserSession();
-//        s.beginTransaction();
-//        Game o = getById(id);
-//        
-//        o.setStatus(status);
-//        o.setPayed(payed);
-//        
-//        s.save(o);
-//        s.flush();
-//        s.getTransaction().commit();
-//        o.sendStatusMail();
-//        return o;
-//    }
-    
     public Long getId() {
         return id;
     }
@@ -151,8 +136,17 @@ public class Game implements Serializable {
         if(user2 != null){
             result.put("user2Id", user2.getId());
         }
-        result.put("gameStatus", status);        
+        result.put("gameStatus", status);
         
         return result;
+    }
+
+    public void joinUser(User user) {
+        this.setUser2(user);
+        this.setStatus(GAME_INPROCESS);
+        Session s = HibernateSessionManager.getSessionFactory().openSession();
+        s.beginTransaction();
+        s.update(this);
+        s.getTransaction().commit();
     }
 }

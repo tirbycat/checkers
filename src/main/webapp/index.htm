@@ -12,16 +12,108 @@
         <script src="js/code.js"></script>
     </head>
     <body>
-        #if($session.userid)
-            <div class="container" ng-controller="DataCtrl">
-                $logoutLnk
+        <div class="container" #if($session.userid) ng-controller="DataCtrl" #end>
+            <div class="navbar navbar-inverse navbar-fixed-top">
+                <div class="navbar-inner">
+                    <div class="container">
+                        <a class="btn btn-navbar" data-target=".nav-collapse" data-toggle="collapse">
+                            <span class="icon-bar"></span>
+                            <span class="icon-bar"></span>
+                            <span class="icon-bar"></span>
+                        </a>
+                        <a class="brand" href="/">Checkers</a>
+                        <div class="nav-collapse collapse">
+                            #if($session.userid)
+                                <ul class="nav">
+                                    <li class="dropdown">
+                                        <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+                                            My games
+                                            <b class="caret"></b>
+                                        </a>
+                                        <ul class="dropdown-menu">
+                                            <li ng-repeat="row in mygames">
+                                                <a href="#" ng-click="SelectGame(row)">{{row}}</a>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                    <li class="dropdown">
+                                        <a class="dropdown-toggle" data-toggle="dropdown" href="#">
+                                            Joined games
+                                            <b class="caret"></b>
+                                        </a>
+                                        <ul class="dropdown-menu">
+                                            <li ng-repeat="row in joinedgames">
+                                                <a href="#" ng-click="SelectGame(row)">{{row}}</a>
+                                            </li>
+                                        </ul>
+                                    </li>
+                                     <li class="active">
+                                        <a href="#" ng-click="addNewGame()">Create new game</a>
+                                    </li>
+                                    <li class="active">
+                                        $logoutLnk
+                                    </li>
+                                </ul>
+                            #else
+                                $loginForm.startTag()
+<!--                                    <h2 class="form-signin-heading">Please sign in</h2>-->
+                                    #set ($message = $session.message)
+                                    #if ($message)
+                                        <div class="alert alert-error">
+                                            $message
+                                        </div>
+                                    #end 
+                                    <input class="span2" type="text" name="login" value="#if($login)$login#end" placeholder="Login">
+                                    <input class="span2" type="password" name="password" placeholder="Password">
+                                    $loginForm.fields.loginButton
+                                $loginForm.endTag()
+                            #end    
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                <ul>   
-                    <li ng-repeat="row in games">
-                        <a href="#" ng-click="SelectGame(row)">{{row}}</a>
-                    </li>
-                </ul>
-                <a href="#" ng-click="addNewGame()">add new game</a>
+            #if($session.userid)
+                <div class="row">
+                    <div class="span8">
+                        #set($letters=['A','B','C','D','E','F','G', 'H'])
+                        #set($color=1)
+                        #foreach($j in [7..0])
+                            #set($incj=$j+1)
+                            <div class="row">
+                                #foreach($i in [0..7])
+                                    #if($color==1)
+                                        <div class="span1 background-white">${letters[$i]}$incj<span>{{currentGame.checkers[$i][$j].color}}</span></div>
+                                        #if($i!=7)
+                                            #set($color=0)
+                                        #end
+                                    #else
+                                        <div class="span1 background-black">${letters[$i]}$incj<span>{{currentGame.checkers[$i][$j].color}}</span></div>
+                                        #if($i!=7)
+                                            #set($color=1)
+                                        #end
+                                    #end
+                                #end
+                            </div>
+                        #end
+                    </div>
+                                        
+                    <div class="span4" ng-show="currentGame">
+                        <div class="row">
+                            Game status {{currentGame.gameStatus}}
+                        </div>
+                        <div class="row" ng-show="currentGame.gameStatus!=1">
+                            Game opponent {{currentGame.opponent}}
+                        </div>
+                        <div class="row">
+                            Game link http://localhost:8080/index.htm?getgame={{currentGame.id}}
+                        </div>
+                        <div class="row" ng-show="currentGame.gameStatus==1&&currentGame.user1Id!=$session.userid">
+                            <a href="#" class="btn" ng-click="joinTheGame(currentGame.id)">To join the game</a>
+                        </div>
+                    </div>
+                </div>
+            
                 <script type="text/javascript">
                     #set($angularhttp="$http")
                     function DataCtrl($scope, $routeParams, $angularhttp) {
@@ -32,9 +124,10 @@
                         
                         $angularhttp
                             .get("/checkersapi?json=" + JSON.stringify(getGamesReq), $routeParams).success(function(data) {
-                            $scope.games = data.ids;
+                            $scope.mygames = data.mygames;
+                            $scope.joinedgames = data.joinedgames;
                         });
-
+                                            
                         $scope.addNewGame = function(){
                             var addNewGameReq = {
                                 action: "newgame",
@@ -42,7 +135,7 @@
                             };
                             $angularhttp
                                 .get("/checkersapi?json=" + JSON.stringify(addNewGameReq)).success(function(data) {
-                                $scope.games[$scope.games.length] = data.gameid;
+                                $scope.mygames[$scope.mygames.length] = data.gameid;
                             });
                         }
                         
@@ -57,32 +150,46 @@
                             $angularhttp
                                 .get("/checkersapi?json=" + JSON.stringify(selectGameReq)).success(function(data) {
                                 $scope.currentGame = data;
-                            });                            
+
+                                $scope.currentGame.checkers = new Array(8);
+                                for(var col=0;col<8;col++){
+                                    $scope.currentGame.checkers [col] = new Array();
+                                    for(var row=0;row<8;row++){
+                                        
+                                        $scope.currentGame.checkers [col][row] = new Object();
+                                        $scope.currentGame.checkers [col][row].color = "black";
+                                    }
+                                }
+                                
+                            });
+                        }
+                        
+                        #if($getgame)
+                            var id = $getgame;
+                            $scope.SelectGame(id)
+                        #end
+                        
+                        $scope.joinTheGame = function(gameid){
+                            var joinTheGameReq = {
+                                action: "jointhegame",
+                                parameters: {
+                                    gameid: gameid
+                                }
+                            };
+                            
+                            $angularhttp
+                                .get("/checkersapi?json=" + JSON.stringify(joinTheGameReq)).success(function(data) {
+                                $scope.joinedgames[$scope.joinedgames.length] = data.id;
+                                $scope.SelectGame (data.id);
+                            });            
                         }
                     }
-
                 </script>
-            </div>
-        #else
-            <div class="container">
-                $loginForm.startTag()
-                    <h2 class="form-signin-heading">Please sign in</h2>
-                    #set ($message = $session.message)
-                    #if ($message)
-                        <div class="alert alert-error">
-                            $message
-                        </div>
-                    #end 
-                    <input class="input-block-level" type="text" name="login" value="#if($login)$login#end" placeholder="Login">
-                    <input class="input-block-level" type="password" name="password" placeholder="Password">
-                    <label class="checkbox">
-                        <input type="checkbox" value="remember-me">
-                        Remember me
-                    </label>
-                    
-                    $loginForm.fields.loginButton
-                $loginForm.endTag()
-            </div>
-        #end
+            #end
+            <hr>
+            <footer>
+                <p>&copy; copyright</p>
+            </footer>
+        </div>
     </body>
 </html>

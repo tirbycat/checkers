@@ -17,6 +17,7 @@ public class GameController {
         put("getusergames", new GetUserGames());
         put("getgame", new GetGame());
         put("newgame", new CreateNewGame());
+        put("jointhegame", new JoinTheGame());
     }});
 
     

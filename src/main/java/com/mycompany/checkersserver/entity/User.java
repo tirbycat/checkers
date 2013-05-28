@@ -46,6 +46,10 @@ public class User implements Serializable{
     @MapKey(name="id")
     Map<Long, Game> games;
     
+    @OneToMany(targetEntity=Game.class, cascade=CascadeType.ALL, mappedBy="user2", fetch=FetchType.EAGER)
+    @MapKey(name="id")
+    Map<Long, Game> gamesJoined;
+    
     public User() {
     }
 
@@ -119,14 +123,22 @@ public class User implements Serializable{
     
     public JSONObject getGameListJSON(){
         JSONObject result = new JSONObject();
-        JSONArray ids = new JSONArray();
+        JSONArray myGames = new JSONArray();
         if(games != null){
             for(Long id: games.keySet()){
-                ids.add(id);
+                myGames.add(id);
             }
         }
         
-        result.put("ids", ids);
+        JSONArray joinedGames = new JSONArray();
+        if(gamesJoined != null){
+            for(Long id: gamesJoined.keySet()){
+                joinedGames.add(id);
+            }
+        }
+        
+        result.put("mygames", myGames);
+        result.put("joinedgames", joinedGames);
         return result;
     }
 
@@ -152,5 +164,10 @@ public class User implements Serializable{
             game = null;
         }
         return game;
+    }
+
+    public void joinToGame(Game game) {
+        game.joinUser(this);
+        gamesJoined.put(game.getId(), game);
     }
 }

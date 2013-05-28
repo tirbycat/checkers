@@ -68,7 +68,7 @@ public class GameCache {
     public static Game getGameById(Long id){
         try{
             return activeGames.get(id);
-        } catch (ExecutionException ex) {
+        } catch (Exception ex) {
             log.error("", ex);
             return null;
         }
