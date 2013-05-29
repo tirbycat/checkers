@@ -22,8 +22,10 @@ class GetGame implements GameAction{
         if(game.getUser2() != null){
             if(game.getUser2().getId().equals(uId)){
                 gameJson.put("opponent", game.getUser1().getLogin());
-            }else{
+                gameJson.put("yourcolor", game.getCreatorColor()=='w'?"b":"w");
+            }else if(game.getUser1().getId().equals(uId)){
                 gameJson.put("opponent", game.getUser2().getLogin());
+                gameJson.put("yourcolor", String.valueOf(game.getCreatorColor()));
             }
         }
         return gameJson;

@@ -29,8 +29,8 @@ body {
 }
 
 .background-black{
-    background-color: #000;
-    color: #fff;
+    background-color: #888;
+    color: #222;
     margin-left: 0px;
     height: 70px;
 }
@@ -40,4 +40,27 @@ body {
     color: #000;
     margin-left: 0px;
     height: 70px;
+}
+
+
+.checkersfield-, .checkersfield-e{
+    display: none;
+}
+
+.checkersfield-w{
+    margin: -10px auto auto;
+    height: 50px;
+    width: 50px;
+    border-radius: 50%;
+    display: block;
+    background-color: #fff;
+}
+
+.checkersfield-b{
+    margin: -10px auto auto;
+    height: 50px;
+    width: 50px;
+    border-radius: 50%;
+    display: block;
+    background-color: #000;
 }

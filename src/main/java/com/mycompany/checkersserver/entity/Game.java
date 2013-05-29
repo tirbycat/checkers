@@ -2,6 +2,7 @@ package com.mycompany.checkersserver.entity;
 
 import com.mycompany.checkersserver.HibernateSessionManager;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Date;
 import javax.persistence.Column;
 import javax.persistence.Entity;
@@ -14,6 +15,7 @@ import javax.persistence.Table;
 import javax.persistence.Temporal;
 import javax.persistence.Transient;
 import org.hibernate.Session;
+import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 
 /**
@@ -54,6 +56,13 @@ public class Game implements Serializable {
     @Column(name="status")
     private int status;
     
+    @Column(name="game_field",length=64)
+    private char[][] gameField;
+    
+    private char creatorColor;
+    
+    private char currentMove;
+    
     public Game() {
     }
 
@@ -61,8 +70,30 @@ public class Game implements Serializable {
         this.status = GAME_STARTED;
         this.startDate = new Date();
         this.user1 = user1;
+        initializeGameField();
+        creatorColor = 'w';
+        currentMove = 'w';
     }
-
+    
+    private boolean isGrayField(int i, int j){
+        return (i+j)%2 == 0;
+    }
+    
+    private void initializeGameField(){
+        gameField = new char[8][8];
+        for(int i=0;i<8;i++){
+            for(int j=0;j<8;j++){
+                gameField[i][j] = 'e';
+                if(isGrayField(i, j) && i<3){
+                    gameField[i][j] = 'w';
+                }
+                if(isGrayField(i,j) && i>4){
+                    gameField[i][j] = 'b';
+                }
+            }
+        }
+    }
+    
     public static Game getById(Long id){
         Session s = HibernateSessionManager.getSessionFactory().getCurrentSession();
         s.beginTransaction();
@@ -125,6 +156,10 @@ public class Game implements Serializable {
         this.status = status;
     }
 
+    public char getCreatorColor() {
+        return creatorColor;
+    }
+
     public JSONObject toJSONString() {
         JSONObject result = new JSONObject();
         result.put("id", id);
@@ -137,6 +172,21 @@ public class Game implements Serializable {
             result.put("user2Id", user2.getId());
         }
         result.put("gameStatus", status);
+        if(status == GAME_INPROCESS){
+            result.put("currentMove", String.valueOf(currentMove));
+        }
+        
+        JSONArray cols = new JSONArray();
+        for(int i=0;i<8;i++){
+            JSONArray rows = new JSONArray();
+            cols.add(rows);
+            for(int j=0;j<8;j++){
+                char c = gameField[i][j];
+                rows.add(String.valueOf(c));
+            }
+        }
+        
+        result.put("gameField", cols);
         
         return result;
     }
@@ -149,4 +199,16 @@ public class Game implements Serializable {
         s.update(this);
         s.getTransaction().commit();
     }
+
+    public JSONObject getAvailableMove(int i, int j) {
+        JSONObject result = new JSONObject();
+        JSONArray moves = new JSONArray();
+        result.put("moves", moves);
+        
+        if(gameField[i][j] == currentMove){
+            
+        }
+        return result;
+    }
+
 }

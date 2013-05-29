@@ -77,22 +77,12 @@
                 <div class="row">
                     <div class="span8">
                         #set($letters=['A','B','C','D','E','F','G', 'H'])
-                        #set($color=1)
-                        #foreach($j in [7..0])
-                            #set($incj=$j+1)
+                        #foreach($i in [0..7])
+                            #set($inci=$i+1)
                             <div class="row">
-                                #foreach($i in [0..7])
-                                    #if($color==1)
-                                        <div class="span1 background-white">${letters[$i]}$incj<span>{{currentGame.checkers[$i][$j].color}}</span></div>
-                                        #if($i!=7)
-                                            #set($color=0)
-                                        #end
-                                    #else
-                                        <div class="span1 background-black">${letters[$i]}$incj<span>{{currentGame.checkers[$i][$j].color}}</span></div>
-                                        #if($i!=7)
-                                            #set($color=1)
-                                        #end
-                                    #end
+                                #foreach($j in [0..7])
+                                    #set($k=($i+$j)%2)
+                                    <div class="span1 #if($k!=0)background-white #else background-black #end">${letters[$j]}$inci<span #if($k==0) ng-click="selectField($i,$j)" #end class="checkersfield-{{currentGame.gameField[$i][$j]}}"></span></div>
                                 #end
                             </div>
                         #end
@@ -102,7 +92,7 @@
                         <div class="row">
                             Game status {{currentGame.gameStatus}}
                         </div>
-                        <div class="row" ng-show="currentGame.gameStatus!=1">
+                        <div class="row" ng-show="currentGame.gameStatus!=1&&currentGame.opponent">
                             Game opponent {{currentGame.opponent}}
                         </div>
                         <div class="row">
@@ -110,6 +100,24 @@
                         </div>
                         <div class="row" ng-show="currentGame.gameStatus==1&&currentGame.user1Id!=$session.userid">
                             <a href="#" class="btn" ng-click="joinTheGame(currentGame.id)">To join the game</a>
+                        </div>
+                        
+                        <div class="row" ng-show="currentGame.gameStatus==1">
+                            Waiting for opponent
+                        </div>
+                        
+                        <div class="row" ng-show="currentGame.gameStatus==2&&(currentGame.user1Id==$session.userid||currentGame.user2Id==$session.userid)">
+                            Your color {{currentGame.yourcolor}}
+                        </div>
+                        
+                        <div class="row" ng-show="currentGame.gameStatus==2&&currentGame.currentMove==currentGame.yourcolor">
+                            Your move! 
+                        </div>
+                        <div class="row" ng-show="currentGame.gameStatus==2&&currentGame.currentMove==currentGame.yourcolor&&currentGame.figureSelected!=true">
+                            Select figure
+                        </div>
+                        <div class="row" ng-show="currentGame.gameStatus==2&&currentGame.currentMove==currentGame.yourcolor&&currentGame.figureSelected==true">
+                            Select move
                         </div>
                     </div>
                 </div>
@@ -149,18 +157,9 @@
                             
                             $angularhttp
                                 .get("/checkersapi?json=" + JSON.stringify(selectGameReq)).success(function(data) {
+                                console.log(data);
                                 $scope.currentGame = data;
-
-                                $scope.currentGame.checkers = new Array(8);
-                                for(var col=0;col<8;col++){
-                                    $scope.currentGame.checkers [col] = new Array();
-                                    for(var row=0;row<8;row++){
-                                        
-                                        $scope.currentGame.checkers [col][row] = new Object();
-                                        $scope.currentGame.checkers [col][row].color = "black";
-                                    }
-                                }
-                                
+                                $scope.currentGame.figureSelected = false;
                             });
                         }
                         
@@ -181,7 +180,33 @@
                                 .get("/checkersapi?json=" + JSON.stringify(joinTheGameReq)).success(function(data) {
                                 $scope.joinedgames[$scope.joinedgames.length] = data.id;
                                 $scope.SelectGame (data.id);
-                            });            
+                            });
+                        }
+                        
+                        
+                        $scope.selectField = function(i, j){
+                            if($scope.currentGame){
+                                if($scope.currentGame.gameField [i][j] == $scope.currentGame.currentMove &&
+                                   $scope.currentGame.currentMove == $scope.currentGame.yourcolor){
+                                    if($scope.currentGame.figureSelected){
+                                        $scope.currentGame.figureSelected = false;
+                                    }else{
+                                        $scope.currentGame.figureSelected = true;
+                                        var getAvailableMoveReq = {
+                                            action: "getavailablemove",
+                                            parameters: {
+                                                gameid: $scope.currentGame.id,
+                                                i: i,
+                                                j: j
+                                            }
+                                        };
+                                        $angularhttp
+                                            .get("/checkersapi?json=" + JSON.stringify(getAvailableMoveReq)).success(function(data) {
+                                            console.log(data);
+                                        });  
+                                    }
+                                }
+                            }
                         }
                     }
                 </script>
