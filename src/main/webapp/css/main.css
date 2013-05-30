@@ -64,3 +64,25 @@ body {
     display: block;
     background-color: #000;
 }
+
+.checkersfield-Q{
+    margin: -10px auto auto;
+    height: 60px;
+    width: 60px;
+    border-radius: 50%;
+    display: block;
+    background-color: #eee;
+}
+
+.checkersfield-K{
+    margin: -10px auto auto;
+    height: 60px;
+    width: 60px;
+    border-radius: 50%;
+    display: block;
+    background-color: #222;
+}
+
+.selected{
+    opacity: 0.7;
+}

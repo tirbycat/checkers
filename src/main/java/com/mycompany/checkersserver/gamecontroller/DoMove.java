@@ -9,18 +9,21 @@ import org.json.simple.parser.ParseException;
  *
  * @author tirbycat
  */
-class GetAvailableMove implements GameAction{
+class DoMove implements GameAction{
 
     @Override
     public JSONObject run(Long uId, JSONObject param) throws ParseException {
         Long id = (Long)param.get("gameid");
-        int i = (int)(long)(Long)param.get("i");
-        int j = (int)(long)(Long)param.get("j");
+        int rowFrom = (int)(long)(Long)param.get("rowFrom");
+        int colFrom = (int)(long)(Long)param.get("colFrom");
+        int rowTo = (int)(long)(Long)param.get("rowTo");
+        int colTo = (int)(long)(Long)param.get("colTo");
+        
         Game game = GameCache.getGameById(id);
         if(game == null){
             throw new ParseException(0);
         }
-        JSONObject gameJson = game.getAvailableMove(i, j);
+        JSONObject gameJson = game.doMove(rowFrom, colFrom, rowTo, colTo);
         
         return gameJson;
     }

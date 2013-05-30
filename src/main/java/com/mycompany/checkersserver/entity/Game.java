@@ -25,9 +25,16 @@ import org.json.simple.JSONObject;
 @Entity
 @Table(name="games")
 public class Game implements Serializable {
-    public static final int GAME_STARTED = 1;
-    public static final int GAME_INPROCESS = 2;
-    public static final int GAME_FINISHED = 3;
+    public static final int GAME_STARTED = 1,
+                            GAME_INPROCESS = 2,
+                            GAME_FINISHED = 3;
+    
+    public static final char
+                EMPTY = 'e',
+                WHITE = 'w',
+                WHITE_QUEEN = 'Q',
+                BLACK = 'b',
+                BLACK_KING = 'K';
     
 //    @TableGenerator(name = "gameid", table = "game", pkColumnName = "idGame", 
 //            pkColumnValue = "idValue",allocationSize = 1)
@@ -71,24 +78,24 @@ public class Game implements Serializable {
         this.startDate = new Date();
         this.user1 = user1;
         initializeGameField();
-        creatorColor = 'w';
-        currentMove = 'w';
+        creatorColor = WHITE;
+        currentMove = WHITE;
     }
     
-    private boolean isGrayField(int i, int j){
-        return (i+j)%2 == 0;
+    private boolean isGrayField(int row, int col){
+        return (row+col)%2 == 0;
     }
     
     private void initializeGameField(){
         gameField = new char[8][8];
-        for(int i=0;i<8;i++){
-            for(int j=0;j<8;j++){
-                gameField[i][j] = 'e';
-                if(isGrayField(i, j) && i<3){
-                    gameField[i][j] = 'w';
+        for(int row=0;row<8;row++){
+            for(int col=0;col<8;col++){
+                gameField[row][col] = EMPTY;
+                if(isGrayField(row, col) && row<3){
+                    gameField[row][col] = WHITE;
                 }
-                if(isGrayField(i,j) && i>4){
-                    gameField[i][j] = 'b';
+                if(isGrayField(row,col) && row>4){
+                    gameField[row][col] = BLACK;
                 }
             }
         }
@@ -160,6 +167,19 @@ public class Game implements Serializable {
         return creatorColor;
     }
 
+    private JSONArray getgameField(){
+        JSONArray cols = new JSONArray();
+        for(int row=0;row<8;row++){
+            JSONArray rows = new JSONArray();
+            cols.add(rows);
+            for(int col=0;col<8;col++){
+                char c = gameField[row][col];
+                rows.add(String.valueOf(c));
+            }
+        }
+        return cols;
+    }
+    
     public JSONObject toJSONString() {
         JSONObject result = new JSONObject();
         result.put("id", id);
@@ -176,17 +196,7 @@ public class Game implements Serializable {
             result.put("currentMove", String.valueOf(currentMove));
         }
         
-        JSONArray cols = new JSONArray();
-        for(int i=0;i<8;i++){
-            JSONArray rows = new JSONArray();
-            cols.add(rows);
-            for(int j=0;j<8;j++){
-                char c = gameField[i][j];
-                rows.add(String.valueOf(c));
-            }
-        }
-        
-        result.put("gameField", cols);
+        result.put("gameField", getgameField());
         
         return result;
     }
@@ -200,15 +210,176 @@ public class Game implements Serializable {
         s.getTransaction().commit();
     }
 
-    public JSONObject getAvailableMove(int i, int j) {
+    public JSONObject getAvailableMove(int row, int col) {
         JSONObject result = new JSONObject();
         JSONArray moves = new JSONArray();
-        result.put("moves", moves);
         
-        if(gameField[i][j] == currentMove){
-            
+        char KING = BLACK_KING;
+        if(currentMove == WHITE){
+            KING = WHITE_QUEEN;
         }
+        
+        if(gameField[row][col] == currentMove ||
+           gameField[row][col] == KING){
+            moves = availableJumpes(row, col);
+            if(moves.size() == 0){
+                moves = availableMoves(row, col);
+            }
+        }
+        
+        result.put("moves", moves);
+        return result;
+    }
+    
+    private void setNextGamerMove(){
+        if(currentMove == WHITE){
+            currentMove = BLACK;
+        }else{
+            currentMove = WHITE;
+        }
+    }
+    
+    private boolean checkJump(int rOver, int cOver, int rTo, int cTo) {
+        if (rTo < 0 || rTo > 7 || cTo < 0 || cTo > 7){
+            return false;
+        }
+
+        if (gameField[rTo][cTo] != EMPTY){
+            return false;
+        }
+
+        if (currentMove == WHITE) {
+            if (gameField[rOver][cOver] != BLACK && gameField[rOver][cOver] != BLACK_KING){
+               return false;
+            }
+            return true;
+        }else {
+            if (gameField[rOver][cOver] != WHITE && gameField[rOver][cOver] != WHITE_QUEEN){
+               return false;
+            }
+            return true;
+        }
+    }
+    
+    private boolean checkMove(int rowFrom, int colFrom, int rowTo, int colTo){
+        if (rowTo < 0 || rowTo > 7 || colTo < 0 || colTo > 7){
+            return false;
+        }
+        
+        if (gameField[rowTo][colTo] != EMPTY){
+            return false;
+        }
+
+        if (currentMove == WHITE) {
+            if (rowTo-rowFrom != 1 || Math.abs(colTo-colFrom) != 1){
+               return false;
+            }
+            return true;
+        }else {
+            if (rowFrom-rowTo != 1 || Math.abs(colFrom-colTo) != 1){
+               return false;
+            }
+            return true;
+        }
+    }
+    
+    private JSONArray availableJumpes(int row, int col){
+        JSONArray result = new JSONArray();
+        
+        if(checkJump(row-1, col-1, row-2, col-2)){
+            JSONObject o = new JSONObject();
+            o.put("row", row-2);
+            o.put("col", col-2);
+            result.add(o);
+        }
+        if(checkJump(row-1, col+1, row-2, col+2)){
+            JSONObject o = new JSONObject();
+            o.put("row", row-2);
+            o.put("col", col+2);
+            result.add(o);
+        }
+        if(checkJump(row+1, col-1, row+2, col-2)){
+            JSONObject o = new JSONObject();
+            o.put("row", row+2);
+            o.put("col", col-2);
+            result.add(o);
+        }
+        if(checkJump(row+1, col+1, row+2, col+2)){
+            JSONObject o = new JSONObject();
+            o.put("row", row+2);
+            o.put("col", col+2);
+            result.add(o);
+        }
+        
+        return result;
+    }
+    
+    private JSONArray availableMoves(int row, int col){
+        JSONArray result = new JSONArray();
+        
+        switch(gameField[row][col]){
+            case WHITE:
+                if(row<7 && col<7 && gameField[row+1][col+1] == EMPTY){
+                    JSONObject o = new JSONObject();
+                    o.put("row", row+1);
+                    o.put("col", col+1);
+                    result.add(o);
+                }
+                if(row<7 && col>0 && gameField[row+1][col-1] == EMPTY){
+                    JSONObject o = new JSONObject();
+                    o.put("row", row+1);
+                    o.put("col", col-1);
+                    result.add(o);
+                }
+                break;
+                
+            case BLACK:
+                if(row>0 && col>0 && gameField[row-1][col-1] == EMPTY){
+                    JSONObject o = new JSONObject();
+                    o.put("row", row-1);
+                    o.put("col", col-1);
+                    result.add(o);
+                }
+                if(row>0 && col<7 && gameField[row-1][col+1] == EMPTY){
+                    JSONObject o = new JSONObject();
+                    o.put("row", row-1);
+                    o.put("col", col+1);
+                    result.add(o);
+                }
+                break;
+            case WHITE_QUEEN:
+                break;
+            case BLACK_KING:
+                break;
+        }
+        
         return result;
     }
 
+    public JSONObject doMove(int rowFrom, int colFrom, int rowTo, int colTo) {
+        JSONObject result = new JSONObject();
+
+        if(currentMove == gameField[rowFrom][colFrom]){
+            if(Math.abs(rowFrom-rowTo) > 1){
+                int rowOver = (rowFrom+rowTo)/2;
+                int colOver = (colFrom+colTo)/2;
+                if(checkJump(rowOver, colOver, rowTo, colTo)){
+                    gameField[rowTo][colTo] = gameField[rowFrom][colFrom];
+                    gameField[rowOver][colOver] = EMPTY;
+                    gameField[rowFrom][colFrom] = EMPTY;
+                    setNextGamerMove();
+                }
+            }else{
+                if(checkMove(rowFrom, colFrom, rowTo, colTo)){
+                    gameField[rowTo][colTo] = gameField[rowFrom][colFrom];
+                    gameField[rowFrom][colFrom] = EMPTY;
+                    setNextGamerMove();
+                }
+            }
+        }
+        result.put("gameStatus", status);
+        result.put("currentMove", String.valueOf(currentMove));
+        result.put("gameField", getgameField());
+        return result;
+    }
 }

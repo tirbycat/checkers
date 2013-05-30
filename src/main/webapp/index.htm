@@ -82,7 +82,7 @@
                             <div class="row">
                                 #foreach($j in [0..7])
                                     #set($k=($i+$j)%2)
-                                    <div class="span1 #if($k!=0)background-white #else background-black #end">${letters[$j]}$inci<span #if($k==0) ng-click="selectField($i,$j)" #end class="checkersfield-{{currentGame.gameField[$i][$j]}}"></span></div>
+                                    <div #if($k==0) ng-click="selectMove($i, $j)" #end class="span1 #if($k!=0)background-white #else background-black #end">${letters[$j]}$inci<span #if($k==0) ng-class="isSelected($i,$j)" ng-click="selectField($i,$j)" #end class="checkersfield-{{currentGame.gameField[$i][$j]}}"></span></div>
                                 #end
                             </div>
                         #end
@@ -113,10 +113,10 @@
                         <div class="row" ng-show="currentGame.gameStatus==2&&currentGame.currentMove==currentGame.yourcolor">
                             Your move! 
                         </div>
-                        <div class="row" ng-show="currentGame.gameStatus==2&&currentGame.currentMove==currentGame.yourcolor&&currentGame.figureSelected!=true">
+                        <div class="row" ng-show="currentGame.gameStatus==2&&currentGame.currentMove==currentGame.yourcolor&&currentGame.figureSelectedRow==-1">
                             Select figure
                         </div>
-                        <div class="row" ng-show="currentGame.gameStatus==2&&currentGame.currentMove==currentGame.yourcolor&&currentGame.figureSelected==true">
+                        <div class="row" ng-show="currentGame.gameStatus==2&&currentGame.currentMove==currentGame.yourcolor&&currentGame.figureSelectedRow!=-1">
                             Select move
                         </div>
                     </div>
@@ -124,7 +124,8 @@
             
                 <script type="text/javascript">
                     #set($angularhttp="$http")
-                    function DataCtrl($scope, $routeParams, $angularhttp) {
+                    function DataCtrl($scope, $routeParams, $angularhttp, $timeout) {
+                        var updatepageTimer = null;
                         var getGamesReq = {
                             action: "getusergames",
                             parameters: {}
@@ -157,9 +158,20 @@
                             
                             $angularhttp
                                 .get("/checkersapi?json=" + JSON.stringify(selectGameReq)).success(function(data) {
-                                console.log(data);
                                 $scope.currentGame = data;
-                                $scope.currentGame.figureSelected = false;
+                                $scope.currentGame.figureSelectedRow = -1;
+                                $scope.currentGame.figureSelectedCol = -1;
+                                
+                                if($scope.currentGame.currentMove==$scope.currentGame.yourcolor){
+                                    $timeout.cancel(updatepageTimer);
+                                    updatepageTimer = null;
+                                    console.log("timer stop");
+                                }else{
+                                    if(updatepageTimer == null){
+                                        console.log("timer start");
+                                        updatepageTimer = $timeout($scope.onUpdatePage,2000);
+                                    }
+                                }
                             });
                         }
                         
@@ -183,15 +195,25 @@
                             });
                         }
                         
+                        $scope.isSelected = function(i,j){
+                            if($scope.currentGame && $scope.currentGame.figureSelectedRow != -1 &&
+                               $scope.currentGame.figureSelectedCol != -1){
+                                if($scope.currentGame.figureSelectedRow == i &&
+                                    $scope.currentGame.figureSelectedCol == j){
+                                    return 'selected';
+                                }
+                            }
+                            return '';
+                        }
                         
                         $scope.selectField = function(i, j){
                             if($scope.currentGame){
                                 if($scope.currentGame.gameField [i][j] == $scope.currentGame.currentMove &&
                                    $scope.currentGame.currentMove == $scope.currentGame.yourcolor){
-                                    if($scope.currentGame.figureSelected){
-                                        $scope.currentGame.figureSelected = false;
+                                    if($scope.currentGame.figureSelectedRow != -1){
+                                        $scope.currentGame.figureSelectedRow = -1;
+                                        $scope.currentGame.figureSelectedCol = -1;
                                     }else{
-                                        $scope.currentGame.figureSelected = true;
                                         var getAvailableMoveReq = {
                                             action: "getavailablemove",
                                             parameters: {
@@ -202,10 +224,64 @@
                                         };
                                         $angularhttp
                                             .get("/checkersapi?json=" + JSON.stringify(getAvailableMoveReq)).success(function(data) {
-                                            console.log(data);
-                                        });  
+                                            if(data.moves.length > 0){
+                                                $scope.currentGame.figureSelectedRow = i;
+                                                $scope.currentGame.figureSelectedCol = j;
+                                                $scope.currentGame.availableMoves = data.moves;
+                                            }else{
+                                                $scope.currentGame.availableMoves = null;
+                                            }
+                                        });
                                     }
                                 }
+                            }
+                        }
+                        
+                        $scope.selectMove = function(row, col){
+                            if($scope.currentGame.figureSelectedRow != -1 && 
+                                $scope.currentGame.availableMoves != null){
+                                for(var i=0;i<$scope.currentGame.availableMoves.length;i++){
+                                    console.log($scope.currentGame.availableMoves [i]);
+                                    if($scope.currentGame.availableMoves [i].row == row &&
+                                       $scope.currentGame.availableMoves [i].col == col){
+                                       
+                                       var doMoveReq = {
+                                            action: "domove",
+                                            parameters: {
+                                                gameid:  $scope.currentGame.id,
+                                                rowFrom: $scope.currentGame.figureSelectedRow,
+                                                colFrom: $scope.currentGame.figureSelectedCol,
+                                                rowTo:   row,
+                                                colTo:   col
+                                            }
+                                        };
+                                       
+                                        $angularhttp
+                                            .get("/checkersapi?json=" + JSON.stringify(doMoveReq)).success(function(data) {
+                                            $scope.currentGame.gameField = data.gameField;
+                                            $scope.currentGame.currentMove = data.currentMove;
+                                            $scope.currentGame.gameStatus = data.gameStatus;
+                                            $scope.currentGame.figureSelectedRow = -1;
+                                            $scope.currentGame.figureSelectedCol = -1;
+                                            $scope.currentGame.availableMoves = null;
+                                            if($scope.currentGame.currentMove!=$scope.currentGame.yourcolor){
+                                                updatepageTimer = $timeout($scope.onUpdatePage,2000);
+                                                console.log("timer start");
+                                            }
+                                        });
+                                        
+                                        return;
+                                    }
+                                }
+                            }
+                        }
+                        $scope.onUpdatePage = function(){
+                            console.log("ontimer");
+                            if($scope.currentGame){
+                                $scope.SelectGame($scope.currentGame.id)
+                                updatepageTimer = $timeout($scope.onUpdatePage,2000);
+                            }else{
+                                updatepageTimer = null;
                             }
                         }
                     }
