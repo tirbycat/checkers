@@ -69,6 +69,8 @@ public class Game implements Serializable {
     private char creatorColor;
     
     private char currentMove;
+
+    private char winnerColor;
     
     public Game() {
     }
@@ -80,6 +82,7 @@ public class Game implements Serializable {
         initializeGameField();
         creatorColor = WHITE;
         currentMove = WHITE;
+        winnerColor = ' ';
     }
     
     private boolean isGrayField(int row, int col){
@@ -195,6 +198,9 @@ public class Game implements Serializable {
         if(status == GAME_INPROCESS){
             result.put("currentMove", String.valueOf(currentMove));
         }
+        if(status == GAME_FINISHED){
+            result.put("winnerColor", String.valueOf(winnerColor));
+        }
         
         result.put("gameField", getgameField());
         
@@ -210,17 +216,20 @@ public class Game implements Serializable {
         s.getTransaction().commit();
     }
 
+    private char getQueenCode(char color){
+        char queen = BLACK_KING;
+        if(color == WHITE){
+            queen = WHITE_QUEEN;
+        }
+        return queen;
+    }
+    
     public JSONObject getAvailableMove(int row, int col) {
         JSONObject result = new JSONObject();
         JSONArray moves = new JSONArray();
-        
-        char KING = BLACK_KING;
-        if(currentMove == WHITE){
-            KING = WHITE_QUEEN;
-        }
-        
+
         if(gameField[row][col] == currentMove ||
-           gameField[row][col] == KING){
+           gameField[row][col] == getQueenCode(currentMove)){
             moves = availableJumpes(row, col);
             if(moves.size() == 0){
                 moves = availableMoves(row, col);
@@ -231,12 +240,12 @@ public class Game implements Serializable {
         return result;
     }
     
-    private void setNextGamerMove(){
-        if(currentMove == WHITE){
-            currentMove = BLACK;
-        }else{
-            currentMove = WHITE;
+    private char getNextGamerColor(char color){
+        char result = WHITE;
+        if(color == WHITE){
+            result = BLACK;
         }
+        return result;
     }
     
     private boolean checkJump(int rOver, int cOver, int rTo, int cTo) {
@@ -355,28 +364,67 @@ public class Game implements Serializable {
         
         return result;
     }
+    
+    private boolean checkGameOver(char color){
+        for(int row=0;row<8;row++){
+            for(int col=0;col<8;col++){
+                if(gameField[row][col] == color ||
+                   gameField[row][col] == getQueenCode(color)){
+                    if(availableJumpes(row,col).size() > 0){
+                        return false;
+                    }
+                    if(availableMoves(row,col).size() > 0){
+                        return false;
+                    }
+                }
+            }
+        }
+        
+        return true;
+    }
 
     public JSONObject doMove(int rowFrom, int colFrom, int rowTo, int colTo) {
         JSONObject result = new JSONObject();
 
-        if(currentMove == gameField[rowFrom][colFrom]){
-            if(Math.abs(rowFrom-rowTo) > 1){
-                int rowOver = (rowFrom+rowTo)/2;
-                int colOver = (colFrom+colTo)/2;
-                if(checkJump(rowOver, colOver, rowTo, colTo)){
-                    gameField[rowTo][colTo] = gameField[rowFrom][colFrom];
-                    gameField[rowOver][colOver] = EMPTY;
-                    gameField[rowFrom][colFrom] = EMPTY;
-                    setNextGamerMove();
+        synchronized(this){
+            if(currentMove == gameField[rowFrom][colFrom]){
+                boolean valid = false;
+                if(Math.abs(rowFrom-rowTo) > 1){
+                    int rowOver = (rowFrom+rowTo)/2;
+                    int colOver = (colFrom+colTo)/2;
+                    if(checkJump(rowOver, colOver, rowTo, colTo)){
+                        valid = true;
+                        gameField[rowTo][colTo] = gameField[rowFrom][colFrom];
+                        gameField[rowOver][colOver] = EMPTY;
+                        gameField[rowFrom][colFrom] = EMPTY;
+                    }
+                }else{
+                    if(checkMove(rowFrom, colFrom, rowTo, colTo)){
+                        valid = true;
+                        gameField[rowTo][colTo] = gameField[rowFrom][colFrom];
+                        gameField[rowFrom][colFrom] = EMPTY;
+                    }
                 }
-            }else{
-                if(checkMove(rowFrom, colFrom, rowTo, colTo)){
-                    gameField[rowTo][colTo] = gameField[rowFrom][colFrom];
-                    gameField[rowFrom][colFrom] = EMPTY;
-                    setNextGamerMove();
+                if(valid){
+                    if(checkGameOver(getNextGamerColor(currentMove))){
+                        winnerColor = currentMove;
+                        status = GAME_FINISHED;
+                    }else{
+                        currentMove = getNextGamerColor(currentMove);
+                    }
+                    
+                    Session s = HibernateSessionManager.getSessionFactory().openSession();
+                    s.beginTransaction();
+                    s.update(this);
+                    
+                    Move move = new Move(this, rowFrom, colFrom, rowTo, colTo);
+                    s.save(move);
+                    
+                    s.getTransaction().commit();
                 }
             }
         }
+        result.put("winnerColor", status);
         result.put("gameStatus", status);
         result.put("currentMove", String.valueOf(currentMove));
         result.put("gameField", getgameField());

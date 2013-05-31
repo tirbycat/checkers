@@ -16,7 +16,7 @@
 
         <mapping class="com.mycompany.checkersserver.entity.User"/>
         <mapping class="com.mycompany.checkersserver.entity.Game"/>
-        
+        <mapping class="com.mycompany.checkersserver.entity.Move"/>        
         
     </session-factory>
 </hibernate-configuration>
