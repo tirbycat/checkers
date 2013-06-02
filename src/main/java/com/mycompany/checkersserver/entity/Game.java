@@ -191,7 +191,7 @@ public class Game implements Serializable {
             result.put("resumeMoveRow", resumeMoveRow);
             result.put("resumeMoveCol", resumeMoveCol);
             if(resumeMoveRow != -1){
-                result.put("moves", availableJumpes(resumeMoveRow, resumeMoveCol));
+                result.put("moves", availableJumpes(resumeMoveRow, resumeMoveCol, true));
             }
         }
         if(status == GAME_FINISHED){
@@ -230,7 +230,7 @@ public class Game implements Serializable {
            gameField[row][col] == getQueenCode(currentMove)){
             if(resumeMoveRow == -1 || 
                resumeMoveRow == row && resumeMoveCol == col){
-                moves = availableJumpes(row, col);
+                moves = availableJumpes(row, col, false);
             }
             if(resumeMoveRow == -1){
                 if(moves.size() == 0){
@@ -251,9 +251,24 @@ public class Game implements Serializable {
         return result;
     }
     
-    private boolean checkJump(int rOver, int cOver, int rTo, int cTo) {
+    private boolean checkJump(int fRow, int fCol, int rOver, int cOver, int rTo, int cTo) {
         if (rTo < 0 || rTo > 7 || cTo < 0 || cTo > 7){
             return false;
+        }
+        
+        if(Math.abs(fRow-rTo) > 2){
+            if(gameField[fRow][fCol] != getQueenCode(currentMove)){
+                return false;
+            }
+            int fieldsR = Math.abs(fRow-rOver);
+            int fieldsC = Math.abs(fCol-cOver);
+            int signR = -(fRow-rOver)/fieldsR;
+            int signC = -(fCol-cOver)/fieldsC;
+            for(int i=1;i<fieldsR;i++){
+                if (gameField[fRow + signR*i][fCol + signC*i] != EMPTY){
+                    return false;
+                }
+            }
         }
 
         if (gameField[rTo][cTo] != EMPTY){
@@ -272,49 +287,84 @@ public class Game implements Serializable {
             return false;
         }
         
+        if(Math.abs(rowFrom-rowTo) > 1){
+            if(gameField[rowFrom][colFrom] != getQueenCode(currentMove)){
+                return false;
+            }
+            int fieldsR = Math.abs(rowFrom-rowTo);
+            int fieldsC = Math.abs(colFrom-colTo);
+            int signR = -(rowFrom-rowTo)/fieldsR;
+            int signC = -(colFrom-colTo)/fieldsC;
+            for(int i=1;i<fieldsR;i++){
+                if (gameField[rowFrom + signR*i][colFrom + signC*i] != EMPTY){
+                    return false;
+                }
+            }
+        }
+        
         if (gameField[rowTo][colTo] != EMPTY){
             return false;
         }
 
-        if (currentMove == WHITE) {
+        if (gameField[rowFrom][colFrom] == WHITE) {
             if (rowTo-rowFrom != 1 || Math.abs(colTo-colFrom) != 1){
                return false;
             }
-            return true;
-        }else {
+        }else if(gameField[rowFrom][colFrom] == BLACK){
             if (rowFrom-rowTo != 1 || Math.abs(colFrom-colTo) != 1){
                return false;
             }
-            return true;
         }
+        return true;
     }
     
-    private JSONArray availableJumpes(int row, int col){
+    private JSONArray availableJumpes(int row, int col, boolean resume){
         JSONArray result = new JSONArray();
         
-        if(checkJump(row-1, col-1, row-2, col-2)){
-            JSONObject o = new JSONObject();
-            o.put("row", row-2);
-            o.put("col", col-2);
-            result.add(o);
+        for(int i=2;i<8;i++){
+            if(checkJump(row, col, row-(i-1), col-(i-1), row-i, col-i)){
+                JSONObject o = new JSONObject();
+                o.put("row", row-i);
+                o.put("col", col-i);
+                result.add(o);
+                break;
+            }
+            if(resume){
+                break;
+            }
         }
-        if(checkJump(row-1, col+1, row-2, col+2)){
-            JSONObject o = new JSONObject();
-            o.put("row", row-2);
-            o.put("col", col+2);
-            result.add(o);
+        for(int i=2;i<8;i++){
+            if(checkJump(row, col, row-(i-1), col+(i-1), row-i, col+i)){
+                JSONObject o = new JSONObject();
+                o.put("row", row-i);
+                o.put("col", col+i);
+                result.add(o);
+            }
+            if(resume){
+                break;
+            }
         }
-        if(checkJump(row+1, col-1, row+2, col-2)){
-            JSONObject o = new JSONObject();
-            o.put("row", row+2);
-            o.put("col", col-2);
-            result.add(o);
+        for(int i=2;i<8;i++){
+            if(checkJump(row, col, row+(i-1), col-(i-1), row+i, col-i)){
+                JSONObject o = new JSONObject();
+                o.put("row", row+i);
+                o.put("col", col-i);
+                result.add(o);
+            }
+            if(resume){
+                break;
+            }
         }
-        if(checkJump(row+1, col+1, row+2, col+2)){
-            JSONObject o = new JSONObject();
-            o.put("row", row+2);
-            o.put("col", col+2);
-            result.add(o);
+        for(int i=2;i<8;i++){
+            if(checkJump(row, col, row+(i-1), col+(i-1), row+i, col+i)){
+                JSONObject o = new JSONObject();
+                o.put("row", row+i);
+                o.put("col", col+i);
+                result.add(o);
+            }
+            if(resume){
+                break;
+            }
         }
         
         return result;
@@ -354,8 +404,47 @@ public class Game implements Serializable {
                 }
                 break;
             case WHITE_QUEEN:
-                break;
             case BLACK_KING:
+                for(int i=1;i<8;i++){
+                    if(checkMove(row, col, row-i, col-i)){
+                        JSONObject o = new JSONObject();
+                        o.put("row", row-i);
+                        o.put("col", col-i);
+                        result.add(o);
+                    }else{
+                        break;
+                    }
+                }
+                for(int i=1;i<8;i++){
+                    if(checkMove(row, col, row-i, col+i)){
+                        JSONObject o = new JSONObject();
+                        o.put("row", row-i);
+                        o.put("col", col+i);
+                        result.add(o);
+                    }else{
+                        break;
+                    }
+                }
+                for(int i=1;i<8;i++){
+                    if(checkMove(row, col, row+i, col-i)){
+                        JSONObject o = new JSONObject();
+                        o.put("row", row+i);
+                        o.put("col", col-i);
+                        result.add(o);
+                    }else{
+                        break;
+                    }
+                }
+                for(int i=1;i<8;i++){
+                    if(checkMove(row, col, row+i, col+i)){
+                        JSONObject o = new JSONObject();
+                        o.put("row", row+i);
+                        o.put("col", col+i);
+                        result.add(o);
+                    }else{
+                        break;
+                    }
+                }
                 break;
         }
         
@@ -367,7 +456,7 @@ public class Game implements Serializable {
             for(int col=0;col<8;col++){
                 if(gameField[row][col] == color ||
                    gameField[row][col] == getQueenCode(color)){
-                    if(availableJumpes(row,col).size() > 0){
+                    if(availableJumpes(row,col,false).size() > 0){
                         return false;
                     }
                     if(availableMoves(row,col).size() > 0){
@@ -379,26 +468,47 @@ public class Game implements Serializable {
         
         return true;
     }
+    
+    private boolean isJump(int rowFrom, int colFrom, int rowTo, int colTo){
+        if(Math.abs(rowFrom-rowTo) > 1){
+            int signR = (rowFrom-rowTo)/Math.abs(rowFrom-rowTo);
+            int signC = (colFrom-colTo)/Math.abs(colFrom-colTo);
+
+            int rowOver = rowTo + signR;
+            int colOver = colTo + signC;
+            if(gameField[rowOver][colOver] == getNextGamerColor(currentMove) ||
+               gameField[rowOver][colOver] == getQueenCode(getNextGamerColor(currentMove))){
+                return true;
+            }
+        }
+        
+        return false;
+    }
 
     public JSONObject doMove(int rowFrom, int colFrom, int rowTo, int colTo) {
         JSONObject result = new JSONObject();
 
         synchronized(this){
-            if(currentMove == gameField[rowFrom][colFrom]){
+            if(currentMove == gameField[rowFrom][colFrom] ||
+               getQueenCode(currentMove) == gameField[rowFrom][colFrom]){
                 boolean valid = false;
                 JSONArray resumeJumps = null;
-                if(Math.abs(rowFrom-rowTo) > 1 &&
+                if( isJump(rowFrom, colFrom, rowTo, colTo) &&
                    (resumeMoveRow == -1 || 
                     resumeMoveRow == rowFrom && resumeMoveCol == colFrom)){
-                    int rowOver = (rowFrom+rowTo)/2;
-                    int colOver = (colFrom+colTo)/2;
-                    if(checkJump(rowOver, colOver, rowTo, colTo)){
+                    
+                    int signR = (rowFrom-rowTo)/Math.abs(rowFrom-rowTo);
+                    int signC = (colFrom-colTo)/Math.abs(colFrom-colTo);
+                    
+                    int rowOver = rowTo + signR;
+                    int colOver = colTo + signC;
+                    if(checkJump(rowFrom, colFrom, rowOver, colOver, rowTo, colTo)){
                         valid = true;
                         gameField[rowTo][colTo] = gameField[rowFrom][colFrom];
                         gameField[rowOver][colOver] = EMPTY;
                         gameField[rowFrom][colFrom] = EMPTY;
                         
-                        resumeJumps = availableJumpes(rowTo, colTo);
+                        resumeJumps = availableJumpes(rowTo, colTo, true);
                     }
                 }else{
                     if(resumeMoveRow == -1 && 
@@ -409,7 +519,10 @@ public class Game implements Serializable {
                     }
                 }
                 if(valid){
-                    
+                    if(gameField[rowTo][colTo] == WHITE && rowTo == 7 ||
+                        gameField[rowTo][colTo] == BLACK && rowTo == 0){
+                         gameField[rowTo][colTo] = getQueenCode(gameField[rowTo][colTo]);
+                    }
                     
                     if(resumeJumps != null && resumeJumps.size() != 0){
                         resumeMoveRow = rowTo;

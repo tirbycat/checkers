@@ -66,18 +66,18 @@ body {
 }
 
 .checkersfield-Q{
-    margin: -10px auto auto;
-    height: 60px;
-    width: 60px;
+    margin: -20px auto auto;
+    height: 70px;
+    width: 70px;
     border-radius: 50%;
     display: block;
     background-color: #eee;
 }
 
 .checkersfield-K{
-    margin: -10px auto auto;
-    height: 60px;
-    width: 60px;
+    margin: -20px auto auto;
+    height: 70px;
+    width: 70px;
     border-radius: 50%;
     display: block;
     background-color: #222;
