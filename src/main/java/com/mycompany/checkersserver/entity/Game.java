@@ -35,11 +35,7 @@ public class Game implements Serializable {
                 WHITE_QUEEN = 'Q',
                 BLACK = 'b',
                 BLACK_KING = 'K';
-    
-//    @TableGenerator(name = "gameid", table = "game", pkColumnName = "idGame", 
-//            pkColumnValue = "idValue",allocationSize = 1)
-//    @GeneratedValue (strategy = GenerationType.TABLE, generator = "id")
-    
+
     @Id
     @GeneratedValue(strategy=GenerationType.SEQUENCE)
     private Long id;
@@ -72,6 +68,9 @@ public class Game implements Serializable {
 
     private char winnerColor;
     
+    private int resumeMoveRow;
+    private int resumeMoveCol;
+    
     public Game() {
     }
 
@@ -83,6 +82,8 @@ public class Game implements Serializable {
         creatorColor = WHITE;
         currentMove = WHITE;
         winnerColor = ' ';
+        resumeMoveRow = -1;
+        resumeMoveCol = -1;
     }
     
     private boolean isGrayField(int row, int col){
@@ -110,16 +111,6 @@ public class Game implements Serializable {
         Game o = (Game)s.get(Game.class, id);
         s.getTransaction().commit();
         return o;
-    }
-
-    public static Game create(User user){
-        Session s = HibernateSessionManager.getSessionFactory().openSession();
-        Game g = new Game(user);
-        
-        s.save(g);        
-        s.flush();
-        s.close();
-        return g;
     }
     
     public Long getId() {
@@ -197,6 +188,11 @@ public class Game implements Serializable {
         result.put("gameStatus", status);
         if(status == GAME_INPROCESS){
             result.put("currentMove", String.valueOf(currentMove));
+            result.put("resumeMoveRow", resumeMoveRow);
+            result.put("resumeMoveCol", resumeMoveCol);
+            if(resumeMoveRow != -1){
+                result.put("moves", availableJumpes(resumeMoveRow, resumeMoveCol));
+            }
         }
         if(status == GAME_FINISHED){
             result.put("winnerColor", String.valueOf(winnerColor));
@@ -208,12 +204,14 @@ public class Game implements Serializable {
     }
 
     public void joinUser(User user) {
-        this.setUser2(user);
-        this.setStatus(GAME_INPROCESS);
-        Session s = HibernateSessionManager.getSessionFactory().openSession();
-        s.beginTransaction();
-        s.update(this);
-        s.getTransaction().commit();
+        synchronized(this){
+            this.setUser2(user);
+            this.setStatus(GAME_INPROCESS);
+            Session s = HibernateSessionManager.getSessionFactory().openSession();
+            s.beginTransaction();
+            s.update(this);
+            s.getTransaction().commit();
+        }
     }
 
     private char getQueenCode(char color){
@@ -230,9 +228,14 @@ public class Game implements Serializable {
 
         if(gameField[row][col] == currentMove ||
            gameField[row][col] == getQueenCode(currentMove)){
-            moves = availableJumpes(row, col);
-            if(moves.size() == 0){
-                moves = availableMoves(row, col);
+            if(resumeMoveRow == -1 || 
+               resumeMoveRow == row && resumeMoveCol == col){
+                moves = availableJumpes(row, col);
+            }
+            if(resumeMoveRow == -1){
+                if(moves.size() == 0){
+                    moves = availableMoves(row, col);
+                }
             }
         }
         
@@ -257,17 +260,11 @@ public class Game implements Serializable {
             return false;
         }
 
-        if (currentMove == WHITE) {
-            if (gameField[rOver][cOver] != BLACK && gameField[rOver][cOver] != BLACK_KING){
-               return false;
-            }
-            return true;
-        }else {
-            if (gameField[rOver][cOver] != WHITE && gameField[rOver][cOver] != WHITE_QUEEN){
-               return false;
-            }
-            return true;
+        char oppColor = getNextGamerColor(currentMove);
+        if (gameField[rOver][cOver] != oppColor && gameField[rOver][cOver] != getQueenCode(oppColor)){
+           return false;
         }
+        return true;
     }
     
     private boolean checkMove(int rowFrom, int colFrom, int rowTo, int colTo){
@@ -389,7 +386,10 @@ public class Game implements Serializable {
         synchronized(this){
             if(currentMove == gameField[rowFrom][colFrom]){
                 boolean valid = false;
-                if(Math.abs(rowFrom-rowTo) > 1){
+                JSONArray resumeJumps = null;
+                if(Math.abs(rowFrom-rowTo) > 1 &&
+                   (resumeMoveRow == -1 || 
+                    resumeMoveRow == rowFrom && resumeMoveCol == colFrom)){
                     int rowOver = (rowFrom+rowTo)/2;
                     int colOver = (colFrom+colTo)/2;
                     if(checkJump(rowOver, colOver, rowTo, colTo)){
@@ -397,20 +397,33 @@ public class Game implements Serializable {
                         gameField[rowTo][colTo] = gameField[rowFrom][colFrom];
                         gameField[rowOver][colOver] = EMPTY;
                         gameField[rowFrom][colFrom] = EMPTY;
+                        
+                        resumeJumps = availableJumpes(rowTo, colTo);
                     }
                 }else{
-                    if(checkMove(rowFrom, colFrom, rowTo, colTo)){
+                    if(resumeMoveRow == -1 && 
+                       checkMove(rowFrom, colFrom, rowTo, colTo)){
                         valid = true;
                         gameField[rowTo][colTo] = gameField[rowFrom][colFrom];
                         gameField[rowFrom][colFrom] = EMPTY;
                     }
                 }
                 if(valid){
-                    if(checkGameOver(getNextGamerColor(currentMove))){
-                        winnerColor = currentMove;
-                        status = GAME_FINISHED;
+                    
+                    
+                    if(resumeJumps != null && resumeJumps.size() != 0){
+                        resumeMoveRow = rowTo;
+                        resumeMoveCol = colTo;
+                        result.put("moves", resumeJumps);
                     }else{
-                        currentMove = getNextGamerColor(currentMove);
+                        resumeMoveRow = -1;
+                        resumeMoveCol = -1;
+                        if(checkGameOver(getNextGamerColor(currentMove))){
+                            winnerColor = currentMove;
+                            status = GAME_FINISHED;
+                        }else{
+                            currentMove = getNextGamerColor(currentMove);
+                        }
                     }
                     
                     Session s = HibernateSessionManager.getSessionFactory().openSession();
@@ -424,10 +437,33 @@ public class Game implements Serializable {
                 }
             }
         }
-        result.put("winnerColor", status);
+        result.put("resumeMoveRow", resumeMoveRow);
+        result.put("resumeMoveCol", resumeMoveCol);
+        result.put("winnerColor", String.valueOf(winnerColor));
         result.put("gameStatus", status);
         result.put("currentMove", String.valueOf(currentMove));
         result.put("gameField", getgameField());
         return result;
+    }
+    
+    public JSONObject passMove(){
+        synchronized(this){
+            resumeMoveRow = -1;
+            resumeMoveCol = -1;
+            if(checkGameOver(getNextGamerColor(currentMove))){
+                winnerColor = currentMove;
+                status = GAME_FINISHED;
+            }else{
+                currentMove = getNextGamerColor(currentMove);
+            }
+            
+            Session s = HibernateSessionManager.getSessionFactory().openSession();
+            s.beginTransaction();
+            s.update(this);        
+                   
+            s.getTransaction().commit();
+        }
+
+        return toJSONString();
     }
 }

@@ -143,31 +143,35 @@ public class User implements Serializable{
     }
 
     public Game createGame() {        
-        Session s = HibernateSessionManager.getSessionFactory().openSession();
-        if(games == null){
-            games = new HashMap<Long, Game>();
-        }
-        
         Game game = null;
-        try{
-            s.beginTransaction();
+        Session s = HibernateSessionManager.getSessionFactory().openSession();
+        synchronized(this){
+            if(games == null){
+                games = new HashMap<Long, Game>();
+            }
 
-            game = new Game(this);
+            try{
+                s.beginTransaction();
 
-            s.save(game);
-            
-            s.flush();
-            s.getTransaction().commit();
-            games.put(game.getId(), game);
-        }catch(Exception e){
-            s.getTransaction().rollback();
-            game = null;
+                game = new Game(this);
+
+                s.save(game);
+
+                s.flush();
+                s.getTransaction().commit();
+                games.put(game.getId(), game);
+            }catch(Exception e){
+                s.getTransaction().rollback();
+                game = null;
+            }
         }
         return game;
     }
 
     public void joinToGame(Game game) {
-        game.joinUser(this);
-        gamesJoined.put(game.getId(), game);
+        synchronized(this){
+            game.joinUser(this);
+            gamesJoined.put(game.getId(), game);
+        }
     }
 }

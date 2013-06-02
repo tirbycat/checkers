@@ -122,6 +122,9 @@
                         <div class="row" ng-show="currentGame.gameStatus==3">
                             Game finished win {{currentGame.winnerColor}}
                         </div>
+                        <div class="row" ng-show="currentGame.canPassMove&&currentGame.gameStatus==2">
+                            <a href="#" class="btn" ng-click="finishMove()">Pass the move</a>
+                        </div>
                     </div>
                 </div>
                 

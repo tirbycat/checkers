@@ -20,6 +20,7 @@ public class GameController {
         put("jointhegame", new JoinTheGame());
         put("getavailablemove", new GetAvailableMove());
         put("domove", new DoMove());
+        put("passmove", new PassMove());
     }});
 
     

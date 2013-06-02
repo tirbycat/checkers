@@ -30,15 +30,25 @@ function DataCtrl($scope, $routeParams, $http, $timeout) {
 
         $http.get("/checkersapi?json=" + JSON.stringify(selectGameReq)).success(function(data) {
             $scope.currentGame = data;
-            $scope.currentGame.figureSelectedRow = -1;
-            $scope.currentGame.figureSelectedCol = -1;
+            if(data.resumeMoveRow == -1){
+                $scope.currentGame.figureSelectedRow = -1;
+                $scope.currentGame.figureSelectedCol = -1;
+                $scope.currentGame.availableMoves = null;
+                $scope.currentGame.canPassMove = false;
+            }else{
+                $scope.currentGame.figureSelectedRow = data.resumeMoveRow;
+                $scope.currentGame.figureSelectedCol = data.resumeMoveCol;
+                $scope.currentGame.availableMoves = data.moves;
+                $scope.currentGame.canPassMove = true;
+                console.log('can pass move');
+            }
 
             if($scope.currentGame.currentMove==$scope.currentGame.yourcolor){
                 $timeout.cancel(updatepageTimer);
                 updatepageTimer = null;
                 console.log("timer stop");
             }else{
-                if(updatepageTimer == null){
+                if(updatepageTimer == null && $scope.currentGame.gameStatus == 2){
                     console.log("timer start");
                     updatepageTimer = $timeout($scope.onUpdatePage,2000);
                 }
@@ -75,10 +85,11 @@ function DataCtrl($scope, $routeParams, $http, $timeout) {
         return '';
     }
 
-    $scope.selectField = function(i, j){
+    $scope.selectField = function(row, col){
         if($scope.currentGame){
-            if($scope.currentGame.gameField [i][j] == $scope.currentGame.currentMove &&
-               $scope.currentGame.currentMove == $scope.currentGame.yourcolor){
+            if($scope.currentGame.gameField [row][col] == $scope.currentGame.currentMove &&
+               $scope.currentGame.currentMove == $scope.currentGame.yourcolor &&
+               $scope.currentGame.canPassMove == false){
                 if($scope.currentGame.figureSelectedRow != -1){
                     $scope.currentGame.figureSelectedRow = -1;
                     $scope.currentGame.figureSelectedCol = -1;
@@ -87,14 +98,14 @@ function DataCtrl($scope, $routeParams, $http, $timeout) {
                         action: "getavailablemove",
                         parameters: {
                             gameid: $scope.currentGame.id,
-                            i: i,
-                            j: j
+                            row: row,
+                            col: col
                         }
                     };
                     $http.get("/checkersapi?json=" + JSON.stringify(getAvailableMoveReq)).success(function(data) {
                         if(data.moves.length > 0){
-                            $scope.currentGame.figureSelectedRow = i;
-                            $scope.currentGame.figureSelectedCol = j;
+                            $scope.currentGame.figureSelectedRow = row;
+                            $scope.currentGame.figureSelectedCol = col;
                             $scope.currentGame.availableMoves = data.moves;
                         }else{
                             $scope.currentGame.availableMoves = null;
@@ -128,9 +139,18 @@ function DataCtrl($scope, $routeParams, $http, $timeout) {
                         $scope.currentGame.gameField = data.gameField;
                         $scope.currentGame.currentMove = data.currentMove;
                         $scope.currentGame.gameStatus = data.gameStatus;
-                        $scope.currentGame.figureSelectedRow = -1;
-                        $scope.currentGame.figureSelectedCol = -1;
-                        $scope.currentGame.availableMoves = null;
+                        console.log('onmove');
+                        if(data.resumeMoveRow == -1){
+                            $scope.currentGame.figureSelectedRow = -1;
+                            $scope.currentGame.figureSelectedCol = -1;
+                            $scope.currentGame.availableMoves = null;
+                            $scope.currentGame.canPassMove = false;
+                        }else{
+                            $scope.currentGame.figureSelectedRow = data.resumeMoveRow;
+                            $scope.currentGame.figureSelectedCol = data.resumeMoveCol;
+                            $scope.currentGame.availableMoves = data.moves;
+                            $scope.currentGame.canPassMove = true;
+                        }
                         if($scope.currentGame.currentMove!=$scope.currentGame.yourcolor){
                             updatepageTimer = $timeout($scope.onUpdatePage,2000);
                             console.log("timer start");
@@ -142,9 +162,44 @@ function DataCtrl($scope, $routeParams, $http, $timeout) {
             }
         }
     }
+    $scope.finishMove =function(){
+        var doPassMoveReq = {
+            action: "passmove",
+            parameters: {
+                gameid:  $scope.currentGame.id
+            }
+        };
+        
+        $http.get("/checkersapi?json=" + JSON.stringify(doPassMoveReq)).success(function(data) {
+            $scope.currentGame = data;
+            if(data.resumeMoveRow == -1){
+                $scope.currentGame.figureSelectedRow = -1;
+                $scope.currentGame.figureSelectedCol = -1;
+                $scope.currentGame.availableMoves = null;
+                $scope.currentGame.canPassMove = false;
+            }else{
+                $scope.currentGame.figureSelectedRow = data.resumeMoveRow;
+                $scope.currentGame.figureSelectedCol = data.resumeMoveCol;
+                $scope.currentGame.availableMoves = data.moves;
+                $scope.currentGame.canPassMove = true;
+            }
+
+            if($scope.currentGame.currentMove==$scope.currentGame.yourcolor){
+                $timeout.cancel(updatepageTimer);
+                updatepageTimer = null;
+                console.log("timer stop");
+            }else{
+                if(updatepageTimer == null && $scope.currentGame.gameStatus == 2){
+                    console.log("timer start");
+                    updatepageTimer = $timeout($scope.onUpdatePage,2000);
+                }
+            }
+        });
+    }
+    
     $scope.onUpdatePage = function(){
         console.log("ontimer");
-        if($scope.currentGame){
+        if($scope.currentGame && $scope.currentGame.gameStatus == 2){
             $scope.SelectGame($scope.currentGame.id)
             updatepageTimer = $timeout($scope.onUpdatePage,2000);
         }else{
